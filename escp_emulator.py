@@ -18,7 +18,7 @@ def generate_barcode(data, code_type='code128'):
     return Image.open(buffer)
 
 def interpret_esc_p_commands(byte_data):
-    img = Image.new('RGB', (800, 1200), color='white')
+    img = Image.new('RGB', (600, 600), color='white')
     draw = ImageDraw.Draw(img)
     font = ImageFont.load_default()
 
@@ -30,7 +30,18 @@ def interpret_esc_p_commands(byte_data):
             i += 1
             if i < len(byte_data):
                 command = byte_data[i]
-                if command == 105:  # 'i' for barcode
+                # Handle sequence 0x1B, 0x35, 0x1B, 0x2D, 0x31, 0x1B, 0x61, 0x31, 0x1B, 0x20, 0x31
+                if byte_data[i:i+11] == [27, 53, 27, 45, 49, 27, 97, 49, 27, 32, 49]:
+                    i += 11
+                    text_data = ""
+                    while i < len(byte_data) and byte_data[i] != 27:
+                        text_data += chr(byte_data[i])
+                        i += 1
+                    if text_data:
+                        draw.text((x, y), text_data, font=font, fill='black')
+                        y += 20
+                        x = 10
+                elif command == 105:  # 'i' for barcode
                     i += 1
                     barcode_settings = ""
                     while i < len(byte_data) and byte_data[i] != 66:
@@ -60,16 +71,6 @@ def interpret_esc_p_commands(byte_data):
                         draw.text((x, y), text_data, font=font, fill='black')
                         y += 20
                         x = 10
-                elif command == 35:  # Handling sequence `0x1B 0x35 0x1B 0x2D 0x31 0x1B 0x61 0x31 0x1B 0x20 0x31`
-                    i += 10  # Skip the next 10 bytes which are part of the sequence
-                    text_data = ""
-                    while i < len(byte_data) and byte_data[i] not in [27, 10, 13]:
-                        text_data += chr(byte_data[i])
-                        i += 1
-                    if text_data:
-                        print(f"Drawing text after sequence: {text_data}")
-                        draw.text((x, y), text_data, font=font, fill='black')
-                        x += draw.textsize(text_data, font=font)[0]
                 elif command in [10, 13]:  # LF or CR
                     x = 10
                     y += 20
